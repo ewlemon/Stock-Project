@@ -5,22 +5,24 @@ import os
 # ---------------------------
 # 1. Set up output folder
 # ---------------------------
-script_dir = os.path.dirname(os.path.abspath(__file__))  # folder where the script is located
+script_dir = os.path.dirname(os.path.abspath(__file__))  # folder where script is located
 
-excel_path = os.path.join(script_dir, "Major_Markets_Closing_10y.xlsx")
-csv_path = os.path.join(script_dir, "Major_Markets_Closing_10y.csv")
+excel_path = os.path.join(script_dir, "Major_Markets_Closing.xlsx")
+csv_path = os.path.join(script_dir, "Major_Markets_Closing.csv")
 
 # ---------------------------
 # 2. Define indices and names
 # ---------------------------
-indices = ["^GSPC", "^DJI", "^IXIC", "^RUT", "^NDX"]
+indices = ["^GSPC", "^DJI", "^IXIC", "^RUT", "^NDX", "^FTSE", "^GDAXI"]  # example: added FTSE and DAX
 
 index_names = {
     "^GSPC": "S&P 500",
-    "^DJI": "Dow Jones Industrial Average",
+    "^DJI": "Dow Jones",
     "^IXIC": "Nasdaq Composite",
     "^RUT": "Russell 2000",
-    "^NDX": "Nasdaq 100"
+    "^NDX": "Nasdaq 100",
+    "^FTSE": "FTSE 100",
+    "^GDAXI": "DAX"
 }
 
 # ---------------------------
@@ -30,21 +32,21 @@ data_dict = {}
 
 for ticker in indices:
     index = yf.Ticker(ticker)
-    df = index.history(period="10y")
-    df = df[['Close']]
+    df = index.history(period="20y")[['Close']]  # only closing prices
+    df.rename(columns={'Close': index_names[ticker]}, inplace=True)  # rename column to common name
     df.reset_index(inplace=True)
-    df['Index'] = ticker
-    df['Name'] = index_names[ticker]
+    df['Date'] = df['Date'].dt.tz_localize(None)  # remove timezone
     data_dict[ticker] = df
     print(f"Downloaded {ticker} ({index_names[ticker]})")
 
 # ---------------------------
-# 4. Combine into one DataFrame
+# 4. Merge into one wide DataFrame
 # ---------------------------
-combined_df = pd.concat(data_dict.values(), ignore_index=True)
+from functools import reduce
 
-# Remove timezone info to prevent Excel errors
-combined_df['Date'] = combined_df['Date'].dt.tz_localize(None)
+# Start merging on 'Date'
+dfs = list(data_dict.values())
+combined_df = reduce(lambda left, right: pd.merge(left, right, on='Date', how='outer'), dfs)
 
 # ---------------------------
 # 5. Save files
@@ -52,6 +54,6 @@ combined_df['Date'] = combined_df['Date'].dt.tz_localize(None)
 combined_df.to_excel(excel_path, index=False)
 combined_df.to_csv(csv_path, index=False)
 
-print(f"All major market closing prices (last 10 years) saved.")
+print(f"All major market closing prices (last 20 years) saved.")
 print(f"Excel: {excel_path}")
 print(f"CSV:   {csv_path}")

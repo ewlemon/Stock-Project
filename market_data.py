@@ -14,7 +14,6 @@ excel_path = os.path.join(script_dir, "Top5_Indices.xlsx")
 # 2. Define indices
 # ---------------------------
 indices = ["^GSPC", "^DJI", "^IXIC", "^RUT", "^NDX"]
-
 index_names = {
     "^GSPC": "S&P 500",
     "^DJI": "Dow Jones",
@@ -35,9 +34,10 @@ if os.path.exists(excel_path):
         cached_df["Date"] = pd.to_datetime(cached_df["Date"])
         last_date = cached_df["Date"].max()
         print(f"Cached data found. Last available date: {last_date.date()}")
-    except:
+    except Exception as e:
+        print(f"Could not read Historical sheet. Downloading full history. Error: {e}")
         cached_df = None
-        print("Could not read Historical sheet. Will download full history.")
+
 else:
     print("No cached data found. Downloading full history since 2000-01-01.")
 
@@ -74,7 +74,7 @@ if data_dict:
     else:
         combined_df = new_data_df
 else:
-    combined_df = cached_df.copy()
+    combined_df = cached_df.copy() if cached_df is not None else pd.DataFrame()
 
 # Remove duplicates and sort
 combined_df.drop_duplicates(subset=['Date'], inplace=True)
@@ -83,34 +83,34 @@ combined_df.sort_values(by="Date", inplace=True)
 # ---------------------------
 # 6. Create continuous daily series (forward-fill)
 # ---------------------------
-continuous_df = combined_df.copy()
-full_date_range = pd.date_range(start=continuous_df['Date'].min(),
-                                end=continuous_df['Date'].max(),
-                                freq='B')  # business days
+if not combined_df.empty:
+    continuous_df = combined_df.copy()
+    full_date_range = pd.date_range(start=continuous_df['Date'].min(),
+                                    end=continuous_df['Date'].max(),
+                                    freq='B')  # business days
 
-continuous_df.set_index('Date', inplace=True)
-continuous_df = continuous_df.reindex(full_date_range)
-continuous_df.fillna(method='ffill', inplace=True)
-continuous_df.reset_index(inplace=True)
-continuous_df.rename(columns={'index': 'Date'}, inplace=True)
-
-# ---------------------------
-# 7. Save/update Excel without overwriting Forecast sheet
-# ---------------------------
-if os.path.exists(excel_path):
-    # Load existing workbook
-    book = load_workbook(excel_path)
+    continuous_df.set_index('Date', inplace=True)
+    continuous_df = continuous_df.reindex(full_date_range)
+    continuous_df.ffill(inplace=True)  # forward-fill missing days
+    continuous_df.reset_index(inplace=True)
+    continuous_df.rename(columns={'index': 'Date'}, inplace=True)
 else:
-    book = None
+    continuous_df = pd.DataFrame()
 
-with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
-    if book:
-        writer.book = book
-        writer.sheets = {ws.title: ws for ws in book.worksheets}
-    
-    # Update Historical and Continuous sheets
-    combined_df.to_excel(writer, index=False, sheet_name="Historical")
-    continuous_df.to_excel(writer, index=False, sheet_name="Continuous")
-    
-    # Forecast sheet remains untouched
-print(f"Excel file updated: {excel_path}")
+# ---------------------------
+# 7. Save/update Excel safely
+# ---------------------------
+if not os.path.exists(excel_path):
+    # Create new workbook
+    with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
+        combined_df.to_excel(writer, index=False, sheet_name="Historical")
+        continuous_df.to_excel(writer, index=False, sheet_name="Continuous")
+    print(f"Created new Excel file: {excel_path}")
+else:
+    # Update existing workbook without touching Forecast sheet
+    with pd.ExcelWriter(excel_path, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
+        combined_df.to_excel(writer, index=False, sheet_name="Historical")
+        continuous_df.to_excel(writer, index=False, sheet_name="Continuous")
+    print(f"Updated Excel file: {excel_path}")
+
+print("Script completed successfully.")

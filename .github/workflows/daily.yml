@@ -40,7 +40,7 @@ jobs:
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
-          git add Major_Markets_Closing.xlsx Major_Markets_Closing.csv
+          git add Top5_Indices.xlsx
           git commit -m "Update market data [skip ci]" || echo "No changes to commit"
           git push
         env:

@@ -2,6 +2,7 @@ import yfinance as yf
 import pandas as pd
 import os
 from functools import reduce
+import numpy as np
 
 # ---------------------------
 # 1. Set up output folder
@@ -64,11 +65,9 @@ for ticker in indices:
 # ---------------------------
 if data_dict:
     dfs = list(data_dict.values())
-    new_trading_df = reduce(lambda left, right: pd.merge(left, right, on='Date', how='outer'), dfs)
+    trading_df = reduce(lambda left, right: pd.merge(left, right, on='Date', how='outer'), dfs)
     if cached_trading is not None:
-        trading_df = pd.concat([cached_trading, new_trading_df], ignore_index=True)
-    else:
-        trading_df = new_trading_df
+        trading_df = pd.concat([cached_trading, trading_df], ignore_index=True)
 else:
     trading_df = cached_trading.copy() if cached_trading is not None else None
 
@@ -76,32 +75,34 @@ trading_df.drop_duplicates(subset=['Date'], inplace=True)
 trading_df.sort_values(by="Date", inplace=True)
 
 # ---------------------------
-# 6. Create continuous sheet
+# 6. Add numeric date column for regression
 # ---------------------------
-continuous_df = trading_df.copy()
-continuous_df.set_index('Date', inplace=True)
-continuous_df = continuous_df.asfreq('D')  # all calendar days
-continuous_df.ffill(inplace=True)          # forward-fill missing
-continuous_df.reset_index(inplace=True)
+trading_df['Numeric Date'] = (trading_df['Date'] - trading_df['Date'].min()).dt.days + 1
 
 # ---------------------------
-# 7. Add DayNumber column for regression
+# 7. Add returns (percent and log)
 # ---------------------------
-for df in [trading_df, continuous_df]:
-    df['DayNumber'] = (df['Date'] - df['Date'].min()).dt.days + 1
+for col in index_names.values():
+    trading_df[f"{col} % Return"] = trading_df[col].pct_change().fillna(0)
+    trading_df[f"{col} Log Return"] = np.log(trading_df[col] / trading_df[col].shift(1)).fillna(0)
 
 # ---------------------------
-# 8. Save Excel file (preserve other sheets)
+# 8. Reorder columns: Date, Numeric Date, then for each index: Close | % Return | Log Return
+# ---------------------------
+cols_order = ['Date', 'Numeric Date']
+for col in index_names.values():
+    cols_order += [col, f"{col} % Return", f"{col} Log Return"]
+
+trading_df = trading_df[cols_order]
+
+# ---------------------------
+# 9. Save Excel file (overwrite only Trading Days sheet)
 # ---------------------------
 if os.path.exists(excel_path):
-    # Open workbook in append mode, overwrite only target sheets
     with pd.ExcelWriter(excel_path, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
-        continuous_df.to_excel(writer, index=False, sheet_name="Continuous")
         trading_df.to_excel(writer, index=False, sheet_name="Trading Days")
 else:
-    # Workbook doesn't exist; create new
     with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
-        continuous_df.to_excel(writer, index=False, sheet_name="Continuous")
         trading_df.to_excel(writer, index=False, sheet_name="Trading Days")
 
-print("Excel updated with Continuous and Trading Days sheets. Other sheets are preserved.")
+print("Excel updated. Trading Days sheet reordered and returns added.")

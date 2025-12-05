@@ -5,7 +5,7 @@ permissions:
 
 on:
   schedule:
-    - cron: '0 8 * * *'
+    - cron: '0 8 * * *'  # Every day at 8:00 UTC
   workflow_dispatch:
 
 jobs:
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Check out the repository
+      # 1. Check out the repo
       - uses: actions/checkout@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -24,7 +24,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      # 3. Cache Python packages
+      # 3. Cache pip
       - name: Cache pip
         uses: actions/cache@v3
         with:
@@ -43,13 +43,14 @@ jobs:
       - name: Run market data script
         run: python market_data.py
 
-      # 6. Commit and push updated Excel file
+      # 6. Commit updated Excel file
       - name: Commit updated Excel
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
           git add Top5_Indices.xlsx
-          git commit -m "Update market data [skip ci]" || echo "No changes to commit"
+          git commit -m "Update Top5_Indices data [skip ci]" || echo "No changes to commit"
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

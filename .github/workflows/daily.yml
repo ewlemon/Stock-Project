@@ -1,18 +1,23 @@
 name: Daily Market Data Update
 
+permissions:
+  contents: write
+
 # Run every day at 8:00 UTC
 on:
   schedule:
     - cron: '0 8 * * *'
-  workflow_dispatch:  # allows manual run
+  workflow_dispatch:
 
 jobs:
   update_data:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Check out the repo
+      # 1. Check out the repo *with the write-enabled token*
       - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       # 2. Set up Python
       - name: Set up Python
@@ -30,7 +35,7 @@ jobs:
       - name: Run market data script
         run: python market_data.py
 
-      # 5. Commit and push updated files (optional)
+      # 5. Commit and push updated files
       - name: Commit updated data
         run: |
           git config --global user.name "github-actions"
@@ -40,3 +45,4 @@ jobs:
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

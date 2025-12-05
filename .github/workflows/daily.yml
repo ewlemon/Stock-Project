@@ -3,7 +3,6 @@ name: Daily Market Data Update
 permissions:
   contents: write
 
-# Run every day at 8:00 UTC and allow manual dispatch
 on:
   schedule:
     - cron: '0 8 * * *'
@@ -25,17 +24,26 @@ jobs:
         with:
           python-version: '3.12'
 
-      # 3. Install dependencies
+      # 3. Cache Python packages
+      - name: Cache pip
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # 4. Install dependencies
       - name: Install Python packages
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance pandas openpyxl
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; else pip install yfinance pandas openpyxl; fi
 
-      # 4. Run the market data script
+      # 5. Run the market data script
       - name: Run market data script
         run: python market_data.py
 
-      # 5. Commit and push updated Excel file
+      # 6. Commit and push updated Excel file
       - name: Commit updated Excel
         run: |
           git config --global user.name "github-actions"
@@ -45,5 +53,3 @@ jobs:
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-

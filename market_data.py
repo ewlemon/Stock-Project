@@ -80,18 +80,17 @@ trading_df.sort_values(by="Date", inplace=True)
 trading_df['Numeric Date'] = (trading_df['Date'] - trading_df['Date'].min()).dt.days + 1
 
 # ---------------------------
-# 7. Add returns (percent and log)
+# 7. Add returns (percent)
 # ---------------------------
 for col in index_names.values():
     trading_df[f"{col} % Return"] = trading_df[col].pct_change().fillna(0)
-    trading_df[f"{col} Log Return"] = np.log(trading_df[col] / trading_df[col].shift(1)).fillna(0)
 
 # ---------------------------
 # 8. Reorder columns: Date, Numeric Date, then for each index: Close | % Return | Log Return
 # ---------------------------
 cols_order = ['Date', 'Numeric Date']
 for col in index_names.values():
-    cols_order += [col, f"{col} % Return", f"{col} Log Return"]
+    cols_order += [col, f"{col} % Return"]
 
 trading_df = trading_df[cols_order]
 

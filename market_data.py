@@ -86,7 +86,7 @@ for col in index_names.values():
     trading_df[f"{col} % Return"] = trading_df[col].pct_change().fillna(0)
 
 # ---------------------------
-# 8. Reorder columns: Date, Numeric Date, then for each index: Close | % Return | Log Return
+# 8. Reorder columns: Date, Numeric Date, then for each index: Close | % Return
 # ---------------------------
 cols_order = ['Date', 'Numeric Date']
 for col in index_names.values():

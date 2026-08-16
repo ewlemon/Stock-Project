@@ -1,48 +1,48 @@
 name: Daily Market Data Update
-
+ 
 permissions:
   contents: write
-
+ 
 on:
   schedule:
     - cron: '0 8 * * *'  # Every day at 8:00 UTC
   workflow_dispatch:
-
+ 
 jobs:
   update_data:
     runs-on: ubuntu-latest
-
+ 
     steps:
       # 1. Check out the repo
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-
+ 
       # 2. Set up Python
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-
+ 
       # 3. Cache pip
       - name: Cache pip
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
-
+ 
       # 4. Install dependencies
       - name: Install Python packages
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; else pip install yfinance pandas openpyxl; fi
-
+ 
       # 5. Run the market data script
       - name: Run market data script
         run: python market_data.py
-
+ 
       # 6. Commit updated Excel file
       - name: Commit updated Excel
         run: |
@@ -53,4 +53,3 @@ jobs:
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
